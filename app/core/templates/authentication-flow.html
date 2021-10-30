@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="UTF-8">
+<title>Facial recognition example</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
+<style>
+    .modal-backdrop.show {
+        opacity: 0.9;
+    }
+
+    .subtitle {
+        color: #aaa;
+        font-size: 11px;
+    }
+
+    .camera-devices-selection-container {
+        max-width: 50%;
+    }
+
+    #video-holder {
+        margin-top: 1rem;
+        max-width: 100%;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    .invisible {
+        visibility: hidden;
+    }
+
+    .loading-video-indicator {
+        text-align: center;
+        margin-top: 1rem;
+    }
+
+    .video-subtitle {
+        display: none;
+    }
+
+    .container {
+        margin-top: 3rem;
+    }
+
+    .picture-display-container {
+        width: 100%;
+        height: 300px;
+    }
+
+    .animated-button-container {
+        width: 250px;
+        height: 50px;
+        background-color: #CBDC41;
+        cursor: pointer;
+        margin: 50px auto 0;
+        position: relative;
+        overflow: hidden;
+        transition: .3s;
+    }
+
+    .animated-button-container:hover {
+        transition: .3s;
+        box-shadow: 0px 8px 11px 0px rgba(0, 0, 0, 0.1);
+    }
+
+    .checkmark {
+        width: 24px;
+        height: 18px;
+        position: relative;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        top: 50%;
+    }
+
+    .text {
+        width: 100%;
+        text-align: center;
+        color: #fff;
+        letter-spacing: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-family: 'Helvetica';
+        position: absolute;
+        display: inline-block;
+    }
+
+    .negative {
+        color: red;
+        font-size: 12px;
+        display: none;
+    }
+
+    .positive {
+        color: green;
+        font-size: 12px;
+        display: none;
+    }
+
+    #video-container {
+        display: flex;
+        justify-content: center;
+    }
+
+    .modal-header {
+        justify-content: center !important;
+    }
+
+    .bi-check::before {
+        color: green;
+        transform: scale(4.5) !important
+    }
+</style>
+
+<body>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col md-6 lg-6 sm-12 camera-devices-selection-container text-center">
+                <label for="camera-devices">Selected camera: </label>
+                <select id="camera-devices" class="form-select" name="camera-devices"
+                    aria-label="Default select example">
+                </select>
+            </div>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col md-6 sm-12 lg-6">
+                <div class="loading-video-indicator">
+                    <div class="spinner-border" role="status">
+                    </div>
+                    <p>Waiting for video...</p>
+                </div>
+                <div id="video-container">
+                    <video id="video-holder" class="invisible">
+                        Video input not initialized.
+                    </video>
+                </div>
+            </div>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="video-subtitle subtitle col-6 text-center">
+                <p>
+                    When you are ready, click on "Take photo"
+                </p>
+                <button id="take-photo" class="btn btn-primary">
+                    Take photo <i class="bi bi-camera"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals start -->
+
+    <div id="welcome-modal" data-backdrop="static" data-keyboard="false" class="modal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Facial recognition system</h5>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        Welcome to the facial recognition module.
+                        This module will compare the picture you take with the pictures
+                        we have of you in our database. In case you are successfully recognized,
+                        you will be redirected to the page you were previously.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <div class="row">
+                        <div class="col text-center">
+                            <button id="close-modal" type="button" class="btn btn-success">Got it!</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="no-camera-modal" data-backdrop="static" data-keyboard="false" class="modal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Could not access your camera</h5>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        We found a problem when trying to access your camera.
+                        Check if you have a camera connected to your computed,
+                        and that it's functioning properly.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <div class="row">
+                        <div class="col text-center">
+                            <button id="return-to-url" type="button" class="btn btn-danger">
+                                Return to the previous page
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="picture-modal" data-backdrop="static" data-keyboard="false" class="modal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Take photo</h5>
+                </div>
+                <div class="modal-body text-center">
+                    <p>
+                        Your photography is below. If you wish to take another photo, just click
+                        in "Take another photo" below. If you are happy with the picture, click in
+                        "Send" so that the system can make the comparison.
+                    </p>
+                    <div class="picture-display-container">
+                        <canvas id="picture-display">
+                        </canvas>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="row">
+                        <span class="feedback">
+                            <p class="positive counter">
+                                Comparison done successfully. You will be redirected in three seconds.
+                            </p>
+                            <p class="negative">
+                                Could not do the facial comparison, try again later.
+                            </p>
+                        </span>
+                    </div>
+                    <div class="row">
+                        <div class="col text-center">
+                            <button id="do-comparison" type="button" class="btn btn-success">Send</button>
+                            <button id="take-again" type="button" class="btn btn-danger">Take another photo</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="comparison-success-modal" data-backdrop="static" data-keyboard="false" class="modal" tabindex="-1"
+        role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Identification successful!</h5>
+                </div>
+                <div class="modal-body text-center">
+                    <p>
+                        Your face was successfully recognized in our database.
+                        <br />
+                        <i class="bi bi-check"></i>
+                        <br />
+                        <span>
+                            You will be redirected in
+                            <p id="seconds">X</p> seconds.
+                        </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+<script src="https://code.jquery.com/jquery-3.6.0.slim.min.js"
+    integrity="sha256-u7e5khyithlIdTpu22PHhENmPcRdFiHRjhAuHcs05RI=" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
+
+<script type="text/javascript">
+    var cameraList = []
+
+    $(document).ready(() => {
+        $('#welcome-modal').modal({
+            backdrop: 'static',
+            keyboard: false
+        })
+
+        $('#no-camera-modal').modal({
+            backdrop: 'static',
+            keyboard: false
+        })
+
+        $('#picture-modal').modal({
+            backdrop: 'static',
+            keyboard: false
+        })
+
+        $('#comparison-success-modal').modal({
+            backdrop: 'static',
+            keyboard: false
+        })
+
+        toggleModalVisible('#welcome-modal', true)
+    })
+
+    // ### UI events
+
+    $('#close-modal').click(async () => {
+        toggleModalVisible('#welcome-modal', false)
+
+        const result = await checkCameraDevices()
+        if (result.state === 'error') {
+            toggleModalVisible('#no-camera-modal', true)
+            return
+        }
+
+        const cameras = result.cameras
+
+        for (const camera of cameras) {
+            $('#camera-devices').append(`<option value="${camera.deviceId || camera.groupId}">${camera.label || camera.groupId}</option>`)
+        }
+
+        const firstCamera = cameras[0]
+        displayCameraInput(firstCamera.groupId)
+    })
+
+    $('#return-to-url').click(() => {
+        // window.location.replace(`{{ return_url }}`)
+    })
+
+    $('#take-photo').click(() => {
+        $('#take-photo').attr('disabled', true)
+        toggleModalVisible('#picture-modal', true)
+
+        captureFrame()
+    })
+
+    $('#take-again').click(() => {
+        toggleModalVisible('#picture-modal', false)
+        $('#take-photo').attr('disabled', false)
+        $('.negative').hide()
+        $('.positive').hide()
+    })
+
+    $('#camera-devices').change(function () {
+        displayCameraInput(this.value)
+    })
+
+    $('#do-comparison').click(async () => {
+        $('#do-comparison').attr('disabled', true)
+        $('#take-again').attr('disabled', true)
+        $('.positive').hide()
+        $('.negative').hide()
+
+        const image = await getImageFromVideo()
+        const formData = new FormData()
+        formData.append('image', image)
+
+        const result = await fetch(`http://localhost:8000/authentication-check/{{session_id}}`, {
+            method: 'POST',
+            body: formData
+        })
+
+        const body = await result.json()
+
+        if (result.status === 200) {
+            toggleModalVisible('#picture-modal', false)
+            toggleModalVisible('#comparison-success-modal', true)
+            startCountdownToRedirect(body)
+        } else if (result.status === 400) {
+            $('.negative').show()
+            $('.negative').text(`Não identificamos seu rosto. Certifique-se de 
+                                que seu rosto está posicionado de forma clara
+                                e que a iluminação está uniforme na fotografia.`)
+            $('#do-comparison').attr('disabled', false)
+            $('#take-again').attr('disabled', false)
+        } else if (result.status === 404) {
+            $('.negative').text(`Sua sessão de autenticação não foi encontrada,
+                                você será redirecionado em três segundos.`)
+            $('#do-comparison').attr('disabled', false)
+            $('#take-again').attr('disabled', false)
+            $('.negative').show()
+
+            // setTimeout(() => window.location.replace(`{{ return_url }}`), 3000)
+        } else {
+            $('#do-comparison').attr('disabled', false)
+            $('#take-again').attr('disabled', false)
+            $('.negative').show()
+        }
+    })
+
+    // ### End UI events
+
+    const toggleModalVisible = (modalId, shouldShow) => {
+        $(modalId).modal(shouldShow ? 'show' : 'hide')
+    }
+
+    const getImageFromVideo = async () => {
+        const canvas = document.getElementById('picture-display')
+        const savedImage = canvas.toDataURL()
+        const blob = await (await fetch(savedImage)).blob();
+        return blob
+    }
+
+    const captureFrame = async () => {
+        const [canvasWidth, canvasHeight] = [400, 300]
+        const canvas = document.getElementById('picture-display')
+        canvas.width = canvasWidth
+        canvas.height = canvasHeight
+        const context = canvas.getContext('2d')
+        context.fillRect(0, 0, canvasWidth, canvasHeight);
+        context.drawImage(document.getElementById('video-holder'), 0, 0, canvasWidth, canvasHeight)
+    }
+
+    const displayCameraInput = async (groupId) => {
+
+        const video = document.getElementById('video-holder')
+        $('.loading-video-indicator').show()
+        video.classList.add('invisible')
+        $('.video-subtitle').hide()
+
+        const videoStream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+                groupId,
+                frameRate: 60
+            }
+        })
+
+        video.srcObject = videoStream
+        video.play()
+
+        setTimeout(() => {
+            $('.loading-video-indicator').hide()
+            video.classList.remove('invisible')
+            $('.video-subtitle').show()
+        }, 1000)
+    }
+
+    const checkCameraDevices = async () => {
+        try {
+            const availableDevices = await navigator.mediaDevices.enumerateDevices()
+            const videoDevices = availableDevices.filter(device => device.kind == "videoinput")
+            if (videoDevices.length === 0) {
+                return {
+                    state: 'error',
+                    reason: 'NO_CAMERA_INPUT'
+                }
+            }
+
+            return {
+                state: 'success',
+                cameras: videoDevices
+            }
+        } catch (e) {
+            return {
+                state: 'error',
+                reason: 'ACCESS_DENIED'
+            }
+        }
+    }
+
+    const startCountdownToRedirect = (resultToken) => {
+        const container = $('#seconds')
+        let currentSeconds = 5
+        container.text(currentSeconds)
+        const interval = setInterval(() => {
+            currentSeconds--
+            container.text(currentSeconds)
+
+            if (currentSeconds == 1) {
+                clearInterval(interval)
+                // window.location.replace(`{{ return_url }}?token=${resultToken}`)
+            }
+        }, 1000)
+    }
+</script>
+
+</html>
